@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kaleidoscope — Seamless Mirrors + Animation + Video Export (FIXED)</title>
+<style>
+  body { margin: 0; background: #0f1115; color: #e6ebf5; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { padding: 10px 16px; background: #131722; border-bottom: 1px solid #1f2532; }
+  .wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 12px; }
+  @media (max-width: 1100px){ .wrap { grid-template-columns: 1fr; } }
+  .controls { background:#171a21; border:1px solid #1f2532; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .controls .row{ display:grid; grid-template-columns: 150px 1fr; gap:10px; align-items:center; }
+  .controls .row label{ color:#aab3c5; font-size:14px; }
+  .controls input[type="range"], .controls select{ width:100%; }
+  .controls button{ background:#232938; color:#e6ebf5; border:1px solid #2a3350; padding:8px 10px; border-radius:10px; cursor:pointer; font-weight:600; }
+  .controls button:hover{ border-color:#3a466a; }
+  .stage { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  @media (max-width: 1100px){ .stage { grid-template-columns: 1fr; } }
+  .panel { background:#171a21; border:1px solid #1f2532; border-radius:12px; padding:10px; }
+  canvas { width: 100%; background: #0b0e14; border-radius: 8px; }
+  .hint { color:#aab3c5; font-size:12px; }
+  a.download { color:#6ea8fe; text-decoration:none; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kaleidoscope — Seamless Mirrors + Animation + Video Export</h1>
+</header>
+<div class="wrap">
+  <section class="controls">
+    <div class="row"><label>Image</label><div><input id="file" type="file" accept="image/*" /></div></div>
+    <div class="row"><label>Symmetry axes</label><div><input id="axes" type="range" min="1" max="16" value="6" step="1" /> <span id="axesVal">6</span></div></div>
+    <div class="row"><label>Horizontal mirrors</label><div><input id="hMirrors" type="range" min="0" max="10" value="0" step="1" /> <span id="hMirrorsVal">0</span></div></div>
+    <div class="row"><label>Vertical mirrors</label><div><input id="vMirrors" type="range" min="0" max="10" value="0" step="1" /> <span id="vMirrorsVal">0</span></div></div>
+
+    <hr style="border-color:#1f2532; border-style:solid; border-width:1px 0 0 0;">
+    <div class="row"><label>Animate</label><div><label style="display:inline-flex;gap:8px;align-items:center;"><input id="animate" type="checkbox" /> Enable</label></div></div>
+    <div class="row"><label>Rotation speed</label><div><input id="rotSpeed" type="range" min="-180" max="180" value="2" step="1" /> <span id="rotSpeedVal">2</span> °/s</div></div>
+    <div class="row"><label>Drift X amplitude</label><div><input id="driftX" type="range" min="0" max="400" value="30" step="1" /> <span id="driftXVal">30</span> px</div></div>
+    <div class="row"><label>Drift Y amplitude</label><div><input id="driftY" type="range" min="0" max="400" value="30" step="1" /> <span id="driftYVal">30</span> px</div></div>
+    <div class="row"><label>Drift speed</label><div><input id="driftSpeed" type="range" min="0" max="3" value="0.1" step="0.01" /> <span id="driftSpeedVal">0.1</span> Hz</div></div>
+	<div class="row"><label>Zoom amplitude</label>
+  <div><input id="zoomAmp" type="range" min="0" max="10" value="0.1" step="0.01" /> 
+  <span id="zoomAmpVal">0.10</span></div>
+</div>
+<div class="row"><label>Zoom speed</label>
+  <div><input id="zoomSpeed" type="range" min="0" max="3" value="0.1" step="0.01" /> 
+  <span id="zoomSpeedVal">0.10</span> Hz</div>
+</div>
+<div class="row"><label>Zoom in only</label>
+  <div><label style="display:inline-flex;gap:8px;align-items:center;">
+    <input id="zoomInOnly" type="checkbox" /> Enable
+  </label></div>
+</div>
+
+
+    <hr style="border-color:#1f2532; border-style:solid; border-width:1px 0 0 0;">
+    <h3 style="margin:6px 0 4px 0; font-size:14px; color:#aab3c5;">🎥 Video Export Settings</h3>
+    <div class="row"><label>Resolution</label>
+      <div>
+        <select id="resolution">
+          <option value="1280x720">1280×720 (HD)</option>
+          <option value="1920x1080" selected>1920×1080 (Full HD)</option>
+          <option value="2560x1440">2560×1440 (2K)</option>
+          <option value="3840x2160">3840×2160 (4K)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row"><label>Frame rate</label><div><input id="fps" type="range" min="15" max="60" value="30" step="1" /> <span id="fpsVal">30</span> fps</div></div>
+    <div class="row"><label>Bitrate</label><div><input id="bitrate" type="range" min="1" max="20" value="8" step="1" /> <span id="bitrateVal">8</span> Mbps</div></div>
+    <div class="row"><label>Duration</label><div><input id="duration" type="range" min="1" max="300" value="10" step="1" /> <span id="durationVal">10</span> s</div></div>
+    <div class="row"><label></label><div><button id="recordBtn">● Record</button> <span id="recordStatus" class="hint"></span> <span id="estimate" class="hint"></span> <span id="downloadArea"></span></div></div>
+  </section>
+
+  <section class="stage">
+    <div class="panel"><h2>Source (pan/zoom)</h2><canvas id="srcCanvas" width="600" height="420"></canvas><div class="hint">Dashed box shows sampled area (left-edge). Drag to pan • Wheel to zoom.</div></div>
+    <div class="panel"><h2>Mirrored Output (16:9)</h2><canvas id="dstCanvas" width="1280" height="720"></canvas></div>
+  </section>
+</div>
+
+<script>
+// ========== DOM ==========
+const fileInput=document.getElementById('file');
+const axesInput=document.getElementById('axes');
+const axesVal=document.getElementById('axesVal');
+const hMirrorsInput=document.getElementById('hMirrors');
+const vMirrorsInput=document.getElementById('vMirrors');
+const hMirrorsVal=document.getElementById('hMirrorsVal');
+const vMirrorsVal=document.getElementById('vMirrorsVal');
+const animateChk=document.getElementById('animate');
+const rotSpeedInput=document.getElementById('rotSpeed');
+const rotSpeedVal=document.getElementById('rotSpeedVal');
+const driftXInput=document.getElementById('driftX');
+const driftYInput=document.getElementById('driftY');
+const driftXVal=document.getElementById('driftXVal');
+const driftYVal=document.getElementById('driftYVal');
+const driftSpeedInput=document.getElementById('driftSpeed');
+const driftSpeedVal=document.getElementById('driftSpeedVal');
+const zoomAmpInput=document.getElementById('zoomAmp');
+const zoomAmpVal=document.getElementById('zoomAmpVal');
+const zoomSpeedInput=document.getElementById('zoomSpeed');
+const zoomSpeedVal=document.getElementById('zoomSpeedVal');
+const zoomInOnlyChk=document.getElementById('zoomInOnly');
+onRange(zoomAmpInput,zoomAmpVal,(v)=>(+v).toFixed(2));
+onRange(zoomSpeedInput,zoomSpeedVal,(v)=>(+v).toFixed(2));
+const resolutionSel=document.getElementById('resolution');
+const fpsInput=document.getElementById('fps');
+const fpsVal=document.getElementById('fpsVal');
+const bitrateInput=document.getElementById('bitrate');
+const bitrateVal=document.getElementById('bitrateVal');
+const durationInput=document.getElementById('duration');
+const durationVal=document.getElementById('durationVal');
+const recordBtn=document.getElementById('recordBtn');
+const recordStatus=document.getElementById('recordStatus');
+const estimate=document.getElementById('estimate');
+const downloadArea=document.getElementById('downloadArea');
+
+const srcCanvas=document.getElementById('srcCanvas');
+const dstCanvas=document.getElementById('dstCanvas');
+const srcCtx=srcCanvas.getContext('2d');
+const dstCtx=dstCanvas.getContext('2d');
+
+// ========== State ==========
+let img=new Image();
+let imgLoaded=false;
+let view={scale:1,tx:0,ty:0};
+let isPanning=false;let last={x:0,y:0};
+let angleOffset=0; let t0=performance.now();
+
+// ========== Utils ==========
+function clear(c,w,h){c.save();c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,w,h);c.fillStyle='#0b0e14';c.fillRect(0,0,w,h);c.restore();}
+function onRange(r,l,fmt){const upd=()=>l.textContent=fmt?fmt(r.value):r.value;upd();r.addEventListener('input',upd);} 
+function updateEstimate(){const dur=+durationInput.value;const br=+bitrateInput.value;const size=(br*dur/8).toFixed(1);const res=resolutionSel.value;const fps=+fpsInput.value;estimate.textContent=`≈ ${size} MB expected (${res}, ${fps}fps · ${br}Mbps)`;}
+['input','change'].forEach(ev=>{[resolutionSel,fpsInput,bitrateInput,durationInput].forEach(el=>el.addEventListener(ev,updateEstimate));});
+
+// ========== Image Loading (KNOWN-WORKING) ==========
+fileInput.addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const u = URL.createObjectURL(f);
+  const n = new Image();
+  n.onload = () => {
+    img = n;
+    imgLoaded = true;
+    autoFit();
+    // immediate preview
+    renderSource();
+    renderFull(dstCtx, dstCanvas.width, dstCanvas.height, { t: 0, dt: 0 });
+    // revoke after a short delay (prevents flicker/missing)
+    setTimeout(() => URL.revokeObjectURL(u), 500);
+  };
+  n.src = u;
+});
+
+// ========== Fit / Pan / Zoom ==========
+function autoFit(){if(!imgLoaded)return;const W=srcCanvas.width,H=srcCanvas.height;const s=Math.min(W/img.width,H/img.height);view.scale=s;view.tx=(W-img.width*s)/2;view.ty=(H-img.height*s)/2;}
+srcCanvas.addEventListener('mousedown',e=>{isPanning=true;last.x=e.offsetX;last.y=e.offsetY;});
+window.addEventListener('mouseup',()=>isPanning=false);
+srcCanvas.addEventListener('mousemove',e=>{if(!isPanning)return;view.tx+=e.offsetX-last.x;view.ty+=e.offsetY-last.y;last.x=e.offsetX;last.y=e.offsetY;});
+srcCanvas.addEventListener('wheel',e=>{e.preventDefault();const f=Math.pow(1.0015,-e.deltaY);const mx=e.offsetX,my=e.offsetY;const ix=(mx-view.tx)/view.scale,iy=(my-view.ty)/view.scale;view.scale*=f;view.scale=Math.max(0.05,Math.min(20,view.scale));view.tx=mx-ix*view.scale;view.ty=my-iy*view.scale;},{passive:false});
+
+// ========== Bind labels ==========
+onRange(axesInput,axesVal);onRange(hMirrorsInput,hMirrorsVal);onRange(vMirrorsInput,vMirrorsVal);
+onRange(rotSpeedInput,rotSpeedVal);onRange(driftXInput,driftXVal);onRange(driftYInput,driftYVal);
+onRange(driftSpeedInput,driftSpeedVal,(v)=>(+v).toFixed(2));
+onRange(fpsInput,fpsVal);onRange(bitrateInput,bitrateVal);onRange(durationInput,durationVal);
+updateEstimate();
+
+// ========== Rendering ==========
+function renderSource(){
+  const W=srcCanvas.width,H=srcCanvas.height;clear(srcCtx,W,H);
+  if(imgLoaded){
+    srcCtx.save();srcCtx.setTransform(view.scale,0,0,view.scale,view.tx,view.ty);
+    srcCtx.imageSmoothingEnabled=true;srcCtx.imageSmoothingQuality='high';
+    srcCtx.drawImage(img,0,0);srcCtx.restore();
+    // left-edge sample box
+    const cx=50,cy=H/2,boxSize=100;srcCtx.save();srcCtx.strokeStyle='rgba(255,255,255,0.85)';srcCtx.lineWidth=2;srcCtx.setLineDash([8,4]);srcCtx.strokeRect(cx-boxSize/2,cy-boxSize/2,boxSize,boxSize);srcCtx.restore();
+  }
+}
+
+function renderKaleidoscope(ctx,W,H,now){
+  const cx=W/2, cy=H/2; const R=Math.hypot(W,H);
+  const axes=Math.max(1,parseInt(axesInput.value)||1); const angleStep=Math.PI/axes; const total=axes*2;
+  const doAnim=animateChk.checked; const rotSpeed=(+rotSpeedInput.value)*Math.PI/180; const driftA=+driftSpeedInput.value*2*Math.PI; const dxAmp=+driftXInput.value; const dyAmp=+driftYInput.value;
+  if(doAnim){ angleOffset += rotSpeed*now.dt; }
+  const baseX=(0-view.tx)/view.scale; const baseY=(srcCanvas.height/2-view.ty)/view.scale;
+  const offsetX=doAnim? dxAmp*Math.sin(now.t*driftA) : 0; const offsetY=doAnim? dyAmp*Math.cos(now.t*driftA*0.7) : 0;
+  const sampleX=baseX + offsetX/view.scale; const sampleY=baseY + offsetY/view.scale;
+const zoomAmp = +zoomAmpInput.value; // this acts as a multiplier now (e.g., 9 means up to 10×)
+const zoomFreq = +zoomSpeedInput.value * 2 * Math.PI;
+const zoomInOnly = zoomInOnlyChk.checked;
+
+let zoomFactor = 1;
+if (doAnim && zoomAmp > 0) {
+  if (zoomInOnly) {
+    // Continuous zoom in only — gradually increases up to (1 + zoomAmp)
+    zoomFactor = 1 + Math.min(zoomAmp, (now.t * zoomFreq * 0.05) % zoomAmp);
+  } else {
+    // Smooth in-out zoom — max 10× if zoomAmp = 9
+    const z = (Math.sin(now.t * zoomFreq) + 1) / 2; // oscillates 0 → 1 → 0
+    zoomFactor = 1 + zoomAmp * z; // between 1× and (1 + zoomAmp)×
+  }
+}
+
+
+  const eps=0.0035; // slight overlap to avoid hairlines
+  ctx.save(); ctx.translate(cx,cy);
+  for(let i=0;i<total;i++){
+    const angle=i*angleStep + angleOffset; const mirrored=(i%2)===1;
+    ctx.save(); ctx.rotate(angle);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,-angleStep/2 - eps, angleStep/2 + eps); ctx.closePath(); ctx.clip();
+    if(mirrored) ctx.scale(1,-1);
+    ctx.save(); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.scale(view.scale * zoomFactor, view.scale * zoomFactor);; ctx.translate(-sampleX,-sampleY); ctx.drawImage(img,0,0); ctx.restore();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function renderFull(ctx,W,H,now){
+  // 1) base kaleidoscope to offscreen
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const offCtx = off.getContext('2d');
+  renderKaleidoscope(offCtx, W, H, now);
+
+  // 2) Centered H/V mirror tiling with 1px overlap to hide seams
+  const rows = (parseInt(hMirrorsInput.value) || 0) + 1; // bands vertically
+  const cols = (parseInt(vMirrorsInput.value) || 0) + 1; // bands horizontally
+  const xEdges = Array.from({ length: cols + 1 }, (_, i) => Math.round((i * W) / cols));
+  const yEdges = Array.from({ length: rows + 1 }, (_, j) => Math.round((j * H) / rows));
+
+  clear(ctx, W, H);
+  for (let r = 0; r < rows; r++){
+    const y0 = yEdges[r], y1 = yEdges[r + 1];
+    const tileH = y1 - y0;
+    for (let c = 0; c < cols; c++){
+      const x0 = xEdges[c], x1 = xEdges[c + 1];
+      const tileW = x1 - x0;
+      const flipX = (c % 2 === 1) ? -1 : 1;
+      const flipY = (r % 2 === 1) ? -1 : 1;
+
+      ctx.save();
+      ctx.translate(x0, y0);
+      ctx.scale(flipX, flipY);
+      if (flipX === -1) ctx.translate(-tileW, 0);
+      if (flipY === -1) ctx.translate(0, -tileH);
+
+      const destX = -0.5, destY = -0.5, destW = tileW + 1, destH = tileH + 1;
+      ctx.drawImage(off, 0, 0, W, H, destX, destY, destW, destH);
+      ctx.restore();
+    }
+  }
+}
+
+// RAF
+let lastTS=performance.now();
+function frame(ts){ const dt=(ts-lastTS)/1000; lastTS=ts; const t=(ts-t0)/1000; renderSource(); renderFull(dstCtx,dstCanvas.width,dstCanvas.height,{t,dt}); requestAnimationFrame(frame);} requestAnimationFrame(frame);
+
+// ========== Recording ==========
+let recorder=null; let chunks=[]; let recTimer=null; 
+recordBtn.addEventListener('click',()=>{
+  if(!imgLoaded){ alert('Please upload an image first.'); return; }
+  const seconds=parseInt(durationInput.value)||10; const fps=parseInt(fpsInput.value)||30; const brMbps=parseInt(bitrateInput.value)||8; const bitrate=brMbps*1000000; const [W,H]=resolutionSel.value.split('x').map(Number);
+  const off=document.createElement('canvas'); off.width=W; off.height=H; const offCtx=off.getContext('2d');
+  const stream=off.captureStream(fps); const mimeCandidates=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']; let mime=''; for(const m of mimeCandidates){ if(MediaRecorder.isTypeSupported(m)){ mime=m; break; } }
+  try{ recorder=new MediaRecorder(stream,{ mimeType:mime, videoBitsPerSecond: bitrate }); } catch(e){ alert('MediaRecorder not supported in this browser.'); return; }
+  chunks=[]; recorder.ondataavailable=e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop=()=>{ const blob=new Blob(chunks,{type:mime||'video/webm'}); const url=URL.createObjectURL(blob); const [,hStr]=resolutionSel.value.split('x'); const fn=`kaleidoscope_${hStr}p_${fps}fps_${brMbps}mbps.webm`; const a=document.createElement('a'); a.href=url; a.download=fn; a.className='download'; a.textContent='Download video'; downloadArea.innerHTML=''; downloadArea.appendChild(a); recordStatus.textContent=' Saved.'; };
+  // Drive frames into offscreen at chosen FPS
+  let last=performance.now(); recordStatus.textContent=' Recording…'; recorder.start();
+  recTimer=setInterval(()=>{ const now=performance.now(); const dt=(now-last)/1000; last=now; const t=(now-t0)/1000; renderFull(offCtx,W,H,{t,dt}); }, Math.max(1, Math.floor(1000/fps)));
+  setTimeout(()=>{ clearInterval(recTimer); recorder.stop(); stream.getTracks().forEach(t=>t.stop()); }, seconds*1000);
+});
+</script>
+</body>
+</html>
