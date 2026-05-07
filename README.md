@@ -4,6 +4,9 @@ Single-file in-browser tool that turns any image into an animated kaleidoscope a
 
 **Live:** https://abobabo91.github.io/kaleidoscope-video-maker/
 
+![Kaleidoscope screenshot 1](screenshots/kaleidoscope-1.png)
+![Kaleidoscope screenshot 2](screenshots/kaleidoscope-2.png)
+
 ## Features
 - Symmetry axes + horizontal/vertical mirror tiling
 - Animated rotation, drift, and zoom (in-out or zoom-in-only)
